@@ -11,9 +11,10 @@ import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.queries.function.DocValues;
 import org.apache.lucene.queries.function.ValueSource;
 import org.apache.lucene.queries.function.docvalues.DoubleDocValues;
-import org.apache.lucene.queries.function.valuesource.DoubleFieldSource;
-import org.apache.lucene.search.cache.CachedArrayCreator;
-import org.apache.lucene.search.cache.DoubleValuesCreator;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.schema.DateField;
+import org.apache.solr.schema.SchemaField;
+import org.apache.solr.search.SolrIndexSearcher;
 
 public class ScriptValueSource extends ValueSource {
 	
@@ -29,28 +30,40 @@ public class ScriptValueSource extends ValueSource {
 		
 		private Map context;
 		private AtomicReaderContext readerContext;
-		private Map<String,DocValues> doubleValuesCache = new HashMap<String, DocValues>();
+		private Map<String,DocValues> docValuesCache = new HashMap<String, DocValues>();
 		private int currentDoc = 0;
-				
-		private DoubleFieldSource createDoubleFieldSource(String field){
-			return new DoubleFieldSource( new DoubleValuesCreator( field, null, CachedArrayCreator.CACHE_VALUES_AND_BITS ) );
+		
+		public static final int DOUBLE_VALUE = 0;
+		public static final int DATE_VALUE = 0;		
+		
+		
+		private DocValues getDoubleDocValues(String field) throws IOException {
+			return getDocValues(field, DOUBLE_VALUE);
 		}
 		
-		private DocValues getDoubleDocValues(String field) throws IOException{
-			DocValues docValues = doubleValuesCache.get(field);
-			if(docValues == null){
-				//TODO: field does not exists?
-				try {
-				docValues = createDoubleFieldSource(field).getValues(context, readerContext);
-				} catch (Throwable e) {
-					e.printStackTrace();
-				}
-				doubleValuesCache.put(field, docValues);
+		private DocValues getDateDocValues(String field) throws IOException {
+			return getDocValues(field, DATE_VALUE);
+		}
+		
+		private DocValues getDocValues(String field, int expectedField) throws IOException{
+			DocValues docValues = docValuesCache.get(field);
+			
+			if (docValues == null) {
+				SolrIndexSearcher searcher = (SolrIndexSearcher) context.get("searcher");
+				SchemaField f = searcher.getSchema().getField(field);			
+
+			    if (expectedField == DATE_VALUE && f.getType().getClass() == DateField.class) {
+			      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "Can't convert to miliseconds the non-numeric legacy date field: " + field);
+			    }
+			    ValueSource dateSource = f.getType().getValueSource(f, null);
+			    
+			    docValues = dateSource.getValues(context, readerContext);
+				docValuesCache.put(field, docValues);
 			}
 			
 			return docValues;
 		}
-		
+				
 		public DocumentProxy(Map context, AtomicReaderContext readerContext) {
 			this.context = context;
 			this.readerContext = readerContext;
@@ -66,6 +79,15 @@ public class ScriptValueSource extends ValueSource {
 			} catch (IOException e) {
 				// TODO Handle
 				return Double.NaN;
+			}
+		}
+		
+		public Double dateMsVal(String field){
+			try {
+				double v = getDateDocValues(field).doubleVal(this.currentDoc);
+				return v;
+			} catch (IOException e) {
+				return null;
 			}
 		}
 		

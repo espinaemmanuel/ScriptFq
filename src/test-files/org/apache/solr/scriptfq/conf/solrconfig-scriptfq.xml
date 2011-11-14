@@ -55,6 +55,19 @@
 	  		function duplicate(d){
 	  			return d.doubleVal("foo_pd")*2;
 	  		}
+	  		
+	  		function ms(d){
+	  			return d.dateMsVal("date_tdt");
+	  		}
+	  		  		
+	  		function recip(x, m, a, b){
+	  			return a/(m*x+b);
+	  		}
+	  		
+	  		function dateboost(d){
+	  			var date = d.dateMsVal("date_tdt");
+	  			return recip(date, 3.16e-11, 1, 1);
+	  		}
 	  ]]></str>
   </valueSourceParser>
 

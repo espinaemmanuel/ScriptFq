@@ -36,20 +36,19 @@ public class TestScriptFunctionQuery extends SolrTestCaseJ4 {
     assertQ(req("fl", "*,score", "defType","func", "fq","id:1", "q",func),
             "//float[@name='score']='" + sval + "'");
   }
-
+  
   @Test
   public void testFuncs() throws Exception {
-    assertU(adoc("id", "1", "foo_pd", "9.34"));
-    assertU(adoc("id", "2", "foo_pd", "3.44"));
-    assertU(adoc("id", "3", "foo_pd", "5.87"));
-    assertU(adoc("id", "4", "foo_pd", "1.78"));
-    assertU(adoc("id", "5", "foo_pd", "3.00"));
+    assertU(adoc("id", "1", "foo_pd", "9.34", "date_tdt", "1995-10-31T23:59:59Z"));
     assertU(commit());    
 
     dofunc("js(pi)", 3.14);
     dofunc("js(e)", 2.7182);
     dofunc("js(getVal)", 9.34);
     dofunc("js(duplicate)", 18.68);
+    dofunc("js(ms)", 8.15183999E11);
+    dofunc("js(dateboost)", 0.037369467);
+
   }
 
   
